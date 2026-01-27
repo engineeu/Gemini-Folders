@@ -1,36 +1,34 @@
 /* =========================================
    GEMINI FOLDERS - STYLESHEET
-   Automatic Light/Dark Mode Support
    ========================================= */
 
-/* --- 1. Variable Definitions (Light Theme Default) --- */
-:root {
-    --gf-text-main: #1f1f1f;       /* Main text color */
-    --gf-text-dim: #444746;        /* Secondary text color */
-    --gf-bg-folder: #f0f4f9;       /* Folder row background */
-    --gf-bg-hover: #e1e5e8;        /* Hover background */
-    --gf-border: #e0e3e1;          /* Dividers/Borders */
-    --gf-link-color: #0b57d0;      /* Link blue */
-    --gf-icon-filter: grayscale(100%); /* Filter for dark icons */
-    --gf-btn-add: #188038;         /* Green add button */
+/* --- 1. Variable Definitions (Default: Light Mode) --- */
+#gemini-folders-container {
+    --gf-text-main: #1f1f1f;
+    --gf-text-dim: #444746;
+    --gf-bg-folder: #f0f4f9;
+    --gf-bg-hover: #e1e5e8;
+    --gf-border: #e0e3e1;
+    --gf-link-color: #0b57d0;
+    --gf-icon-filter: grayscale(100%);
+    --gf-btn-add: #188038;
     --gf-btn-add-hover: #137333;
-    --gf-dashed-border: #999;      /* Dashed border color */
+    --gf-dashed-border: #999;
 }
 
 /* --- 2. Dark Mode Adaptation --- */
-@media (prefers-color-scheme: dark) {
-    :root {
-        --gf-text-main: #e3e3e3;       /* Light text */
-        --gf-text-dim: #c4c7c5;        /* Light secondary text */
-        --gf-bg-folder: #1e1f20;       /* Dark background */
-        --gf-bg-hover: #333537;        /* Dark hover */
-        --gf-border: #444746;          /* Dark borders */
-        --gf-link-color: #a8c7fa;      /* Readable light blue */
-        --gf-icon-filter: invert(1) grayscale(100%); /* Invert icons to white */
-        --gf-btn-add: #81c995;         /* Pastel green */
-        --gf-btn-add-hover: #a8dab5;
-        --gf-dashed-border: #555;      /* Dark dashed border */
-    }
+/* Class toggled by JS based on body brightness analysis */
+#gemini-folders-container.gf-dark-mode {
+    --gf-text-main: #e3e3e3;
+    --gf-text-dim: #c4c7c5;
+    --gf-bg-folder: #1e1f20;
+    --gf-bg-hover: #333537;
+    --gf-border: #444746;
+    --gf-link-color: #a8c7fa;
+    --gf-icon-filter: invert(1) grayscale(100%);
+    --gf-btn-add: #81c995;
+    --gf-btn-add-hover: #a8dab5;
+    --gf-dashed-border: #555;
 }
 
 /* --- Main Container --- */
@@ -40,6 +38,7 @@
     margin-bottom: 10px;
     font-family: "Google Sans", sans-serif;
     color: var(--gf-text-main);
+    transition: color 0.3s, border-color 0.3s;
 }
 
 /* --- Heading --- */
@@ -49,7 +48,6 @@
     margin-bottom: 10px;
     color: var(--gf-text-main);
     letter-spacing: 0.5px;
-    opacity: 1;
 }
 
 /* --- Folder Row --- */
@@ -160,8 +158,6 @@
 }
 
 /* --- Dashed Buttons (Empty State / New) --- */
-
-/* Large button when no folders exist */
 .empty-state-btn {
     background: none;
     border: 1px dashed var(--gf-dashed-border);
@@ -182,7 +178,6 @@
     border-color: var(--gf-text-main);
 }
 
-/* "New Folder" button at the bottom */
 .new-folder-btn {
     justify-content: center;
     margin-top: 10px;

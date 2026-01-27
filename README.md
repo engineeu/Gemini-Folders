@@ -10,7 +10,7 @@ The interface natively supports both **Light Mode** and **Dark Mode**, automatic
 * 💾 **Local Storage:** Data is saved locally for maximum performance and privacy (`chrome.storage.local`).
 * 🔄 **Backup & Restore:** Import/Export functionality (JSON file) to easily transfer your folders between different computers.
 * ⚡ **Smart Navigation:** Switch between chats without reloading the page (SPA friendly).
-* 🌓 **Dark Mode Support:** Automatic theme detection for perfect readability.
+* 🌓 **Dynamic Theme Detection:** Automatically adapts to the active Gemini theme (Light/Dark) by analyzing the rendered interface, ensuring perfect integration regardless of system settings.
 * ✏️ **Full Management:** Rename and delete both folders and chat links.
 * 🎨 **Native Look:** Visually integrates with the Gemini interface.
 

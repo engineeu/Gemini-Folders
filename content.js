@@ -8,9 +8,8 @@ console.log("Gemini Folders: Loaded");
 // --- 1. STORAGE UTILITIES (LOCAL) ---
 
 /**
- * Retrieves the entire folders object from chrome.storage.local.
- * Data resides only on the current device.
- * @param {function} callback - Function to execute with the retrieved data.
+ * Retrieves the folder structure from Chrome's local storage.
+ * returns Default: { folders: {} } if no data is found.
  */
 function getFolders(callback) {
     chrome.storage.local.get(['geminiFolders'], function(result) {
@@ -19,9 +18,7 @@ function getFolders(callback) {
 }
 
 /**
- * Saves the updated folders object to local storage.
- * @param {object} data - The complete object to save.
- * @param {function} callback - Optional post-save callback.
+ * Saves the updated folder structure to Chrome's local storage.
  */
 function saveFoldersData(data, callback) {
     chrome.storage.local.set({geminiFolders: data}, callback);
@@ -30,9 +27,8 @@ function saveFoldersData(data, callback) {
 // --- 2. DATA EXTRACTION & CREATION ---
 
 /**
- * Attempts to retrieve the real title of the active chat by parsing the Gemini sidebar.
- * If the selected chat is not found in the DOM, falls back to the page title.
- * @returns {string} The chat title.
+ * Extracts the title of the currently active chat from the DOM.
+ * Fallback: Uses the document title if the sidebar element is not found.
  */
 function getActiveChatTitle() {
     const selectedChat = document.querySelector('.conversation.selected .conversation-title');
@@ -43,9 +39,8 @@ function getActiveChatTitle() {
 }
 
 /**
- * Saves the currently open chat into a specific folder.
- * Extracts ID from URL and title from DOM.
- * @param {string} folderName - The destination folder name.
+ * Saves the current chat ID and title into the specified folder.
+ * Prevents duplicates based on chat ID.
  */
 function saveCurrentChat(folderName) {
     const currentUrl = window.location.href;
@@ -78,7 +73,7 @@ function saveCurrentChat(folderName) {
 }
 
 /**
- * Creates a new empty folder without saving any chat.
+ * Prompts user for a name and creates a new empty folder.
  */
 function createNewFolderOnly() {
     const name = prompt("New folder name:");
@@ -97,8 +92,7 @@ function createNewFolderOnly() {
 // --- 3. BACKUP UTILITIES (IMPORT/EXPORT) ---
 
 /**
- * Exports the current configuration to a downloadable JSON file.
- * Useful for backup or transfer to other devices.
+ * Exports the current folder structure as a JSON file download.
  */
 function exportData() {
     getFolders((data) => {
@@ -120,11 +114,10 @@ function exportData() {
 }
 
 /**
- * Imports configuration from a user-uploaded JSON file.
- * Overwrites existing data upon confirmation.
+ * Triggers a hidden file input to upload and parse a JSON backup file.
+ * Warning: Overwrites existing local data.
  */
 function triggerImport() {
-    // Create invisible temp file input
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json';
@@ -161,10 +154,8 @@ function triggerImport() {
 // --- 4. NAVIGATION LOGIC (SPA) ---
 
 /**
- * Handles smart chat opening while preserving SPA state.
- * Attempts to find the chat DOM element and click it for smooth navigation.
- * @param {string} chatId - The chat ID to open.
- * @param {Event} event - The original click event.
+ * Navigates to a chat without reloading the page if possible.
+ * Tries to click the existing sidebar element (SPA behavior); falls back to URL redirection.
  */
 function openChatSmart(chatId, event) {
     event.preventDefault(); 
@@ -172,17 +163,15 @@ function openChatSmart(chatId, event) {
     const allChats = document.querySelectorAll('[data-test-id="conversation"]');
     let foundAndClicked = false;
 
-    // Scan original sidebar to find the matching element
     for (let chatEl of allChats) {
         const elementHtml = chatEl.outerHTML;
         if (elementHtml.includes(chatId)) {
-            chatEl.click(); // SPA Navigation (fast)
+            chatEl.click(); 
             foundAndClicked = true;
             break;
         }
     }
 
-    // Fallback: Standard navigation (page reload)
     if (!foundAndClicked) {
         window.location.href = `https://gemini.google.com/app/${chatId}`;
     }
@@ -191,8 +180,7 @@ function openChatSmart(chatId, event) {
 // --- 5. MANAGEMENT (CRUD) ---
 
 /**
- * Deletes a folder and all its contents.
- * @param {string} folderName - Name of the folder to delete.
+ * Deletes a folder by name.
  */
 function deleteFolder(folderName) {
     if (confirm(`Delete folder "${folderName}"?`)) {
@@ -205,7 +193,6 @@ function deleteFolder(folderName) {
 
 /**
  * Renames an existing folder.
- * @param {string} oldName - Current folder name.
  */
 function renameFolder(oldName) {
     const newName = prompt("New folder name:", oldName);
@@ -215,7 +202,6 @@ function renameFolder(oldName) {
                 alert("A folder with this name already exists.");
                 return;
             }
-            // Transfer data to new key and remove old one
             data.folders[newName] = data.folders[oldName];
             delete data.folders[oldName];
             saveFoldersData(data, renderFolders);
@@ -224,9 +210,7 @@ function renameFolder(oldName) {
 }
 
 /**
- * Removes a single chat link.
- * @param {string} folderName - Parent folder.
- * @param {string} chatId - ID of the chat.
+ * Removes a specific chat link from a folder.
  */
 function deleteChat(folderName, chatId) {
     if (confirm("Remove this chat link?")) {
@@ -238,10 +222,7 @@ function deleteChat(folderName, chatId) {
 }
 
 /**
- * Renames the display title of a saved chat.
- * @param {string} folderName - Parent folder.
- * @param {string} chatId - Chat ID.
- * @param {string} oldTitle - Current title.
+ * Renames the display title of a saved chat link.
  */
 function renameChat(folderName, chatId, oldTitle) {
     const newTitle = prompt("Rename chat link:", oldTitle);
@@ -256,15 +237,51 @@ function renameChat(folderName, chatId, oldTitle) {
     }
 }
 
-// --- 6. UI RENDERING ---
+// --- 6. UI RENDERING & THEME DETECTION ---
 
 /**
- * Builds and injects the folder UI into the DOM.
- * Uses CSS classes for theme support.
+ * Analyzes the body background brightness to toggle dark mode class.
+ * Ensures the extension UI matches the actual rendered Gemini theme.
+ */
+function detectTheme() {
+    const container = document.getElementById('gemini-folders-container');
+    if (!container) return;
+
+    // Get the background color of the body
+    const style = window.getComputedStyle(document.body);
+    const bgColor = style.backgroundColor; 
+
+    // Parse RGB values
+    const rgb = bgColor.match(/\d+/g);
+    if (rgb && rgb.length >= 3) {
+        const r = parseInt(rgb[0]);
+        const g = parseInt(rgb[1]);
+        const b = parseInt(rgb[2]);
+        
+        // Calculate brightness
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        const isDark = brightness < 128;
+        
+        // Apply class only if state changes
+        const hasClass = container.classList.contains('gf-dark-mode');
+
+        if (isDark && !hasClass) {
+            container.classList.add('gf-dark-mode');
+        } else if (!isDark && hasClass) {
+            container.classList.remove('gf-dark-mode');
+        }
+    }
+}
+
+/**
+ * Main rendering function.
+ * Rebuilds the folder list, chats, and buttons based on current data.
  */
 function renderFolders() {
     const container = document.getElementById('gemini-folders-container');
     if (!container) return;
+
+    detectTheme();
 
     container.innerHTML = '<div class="folders-heading">Gemini Folders</div>';
 
@@ -272,33 +289,26 @@ function renderFolders() {
         const folders = data.folders;
         const folderNames = Object.keys(folders);
 
-        // Empty state: show button to create first folder
         if (folderNames.length === 0) {
             const btn = document.createElement('button');
             btn.innerText = "+ Create your first folder";
             btn.className = 'empty-state-btn';
             btn.onclick = createNewFolderOnly;
             container.appendChild(btn);
-            
-            // Render backup buttons even if empty
             renderBackupButtons(container);
             return;
         }
 
-        // Render Folder Loop
         for (const [name, chats] of Object.entries(folders)) {
             const rowDiv = document.createElement('div');
             rowDiv.className = 'folder-row';
 
-            // Folder Item (clickable to expand)
             const folderItem = document.createElement('div');
             folderItem.className = 'folder-item';
             folderItem.innerText = `📂 ${name} (${chats.length})`;
             
-            // Folder Actions
             const actionsDiv = document.createElement('div');
             
-            // Button: Add Current Chat (+)
             const addCurrentChatBtn = document.createElement('span');
             addCurrentChatBtn.className = 'add-chat-btn';
             addCurrentChatBtn.innerText = '➕';
@@ -308,13 +318,11 @@ function renderFolders() {
                 saveCurrentChat(name); 
             };
 
-            // Button: Rename Folder
             const renameBtn = document.createElement('span');
             renameBtn.className = 'action-btn';
             renameBtn.innerText = '✏️';
             renameBtn.onclick = (e) => { e.stopPropagation(); renameFolder(name); };
 
-            // Button: Delete Folder
             const deleteBtn = document.createElement('span');
             deleteBtn.className = 'action-btn';
             deleteBtn.innerText = '🗑️';
@@ -328,7 +336,6 @@ function renderFolders() {
             rowDiv.appendChild(actionsDiv);
             container.appendChild(rowDiv);
 
-            // Content Container (Chat List)
             const contentsDiv = document.createElement('div');
             contentsDiv.className = 'folder-contents';
             
@@ -340,11 +347,11 @@ function renderFolders() {
                 link.href = `https://gemini.google.com/app/${chat.id}`;
                 link.className = 'saved-chat-link';
                 link.innerText = chat.title || "Untitled Chat";
+                link.title = chat.title || "Untitled Chat";
                 link.onclick = (e) => openChatSmart(chat.id, e);
 
                 const chatActions = document.createElement('div');
                 
-                // Button: Rename Chat
                 const editChatBtn = document.createElement('span');
                 editChatBtn.className = 'action-btn';
                 editChatBtn.innerText = '✏️';
@@ -353,7 +360,6 @@ function renderFolders() {
                     renameChat(name, chat.id, chat.title); 
                 };
 
-                // Button: Remove Chat
                 const delChatBtn = document.createElement('span');
                 delChatBtn.className = 'action-btn';
                 delChatBtn.innerText = '🗑️';
@@ -370,7 +376,6 @@ function renderFolders() {
                 contentsDiv.appendChild(chatRow);
             });
 
-            // Expand/Collapse handler
             folderItem.onclick = () => {
                 contentsDiv.classList.toggle('open');
             };
@@ -378,20 +383,18 @@ function renderFolders() {
             container.appendChild(contentsDiv);
         }
         
-        // "New Folder" Button
         const addBtn = document.createElement('div');
         addBtn.className = 'folder-item new-folder-btn'; 
         addBtn.innerText = "📁+ New Folder"; 
         addBtn.onclick = createNewFolderOnly; 
         container.appendChild(addBtn);
 
-        // Render backup buttons at the end
         renderBackupButtons(container);
     });
 }
 
 /**
- * Adds Import/Export buttons to the UI.
+ * Appends Import and Export buttons to the container.
  */
 function renderBackupButtons(container) {
     const settingsDiv = document.createElement('div');
@@ -415,11 +418,13 @@ function renderBackupButtons(container) {
 }
 
 /**
- * Initialization function that looks for the sidebar injection point.
+ * Injects the extension container into the Gemini sidebar DOM.
+ * Target: 'conversations-list' element.
  */
 function injectSidebar() {
     const target = document.querySelector('conversations-list');
     
+    // Only inject if it doesn't exist yet
     if (target && !document.getElementById('gemini-folders-container')) {
         const myContainer = document.createElement('div');
         myContainer.id = 'gemini-folders-container';
@@ -430,11 +435,33 @@ function injectSidebar() {
 
 // --- 7. INITIALIZATION & OBSERVER ---
 
-// Observer to handle Gemini's dynamic loading (SPA)
-const observer = new MutationObserver(() => {
-    injectSidebar();
-});
+/**
+ * Utility to limit function execution frequency (prevents UI freezes).
+ */
+function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+}
 
+/**
+ * Observer callback to handle DOM mutations.
+ * Re-injects sidebar and checks theme when Gemini updates its UI.
+ */
+const handleMutations = debounce(() => {
+    injectSidebar();
+    detectTheme();
+}, 200); 
+
+const observer = new MutationObserver(handleMutations);
+
+// Start observing the document body for changes
 observer.observe(document.body, { childList: true, subtree: true });
 
-setTimeout(injectSidebar, 2000);
+// Initial injection attempt
+setTimeout(() => {
+    injectSidebar();
+    detectTheme();
+}, 2000);
