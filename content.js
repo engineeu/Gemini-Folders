@@ -154,26 +154,37 @@ function triggerImport() {
 // --- 4. NAVIGATION LOGIC (SPA) ---
 
 /**
- * Navigates to a chat without reloading the page if possible.
- * Tries to click the existing sidebar element (SPA behavior); falls back to URL redirection.
+ * Handles navigation between chats by intercepting extension link clicks.
+ * It simulates a native low-level PointerEvent click on Gemini's sidebar links,
+ * allowing Angular's event subsystem to process the route transition seamlessly.
+ *
+ * @param {string} chatId - The alphanumeric identifier of the Gemini conversation.
+ * @param {Event} event - The original click event triggered by the user.
  */
 function openChatSmart(chatId, event) {
+    // Prevent the default navigation of the extension's <a> tag
     event.preventDefault(); 
     
-    const allChats = document.querySelectorAll('[data-test-id="conversation"]');
-    let foundAndClicked = false;
+    // Select the native Gemini sidebar anchor link, explicitly avoiding the extension's own links
+    // The selector isolates anchors inside 'mat-nav-list' whose href contains the conversation ID
+    const nativeAnchor = document.querySelector(`mat-nav-list a[href*="${chatId}"]`);
 
-    for (let chatEl of allChats) {
-        const elementHtml = chatEl.outerHTML;
-        if (elementHtml.includes(chatId)) {
-            chatEl.click(); 
-            foundAndClicked = true;
-            break;
-        }
-    }
-
-    if (!foundAndClicked) {
-        window.location.href = `https://gemini.google.com/app/${chatId}`;
+    if (nativeAnchor) {
+        // Create a realistic hardware-level PointerEvent to satisfy Angular's listener validations.
+        // High-level .click() is ignored by Angular Material because it lacks physical pointer metrics.
+        const simulatedClick = new PointerEvent('click', {
+            bubbles: true,        // Allows the event to bubble up through the DOM tree for event delegation
+            cancelable: true,     // Enables normal event prevent/intercept behaviors
+            pointerType: 'mouse', // Explicitly emulates a physical hardware mouse click
+            view: window          // Associates the event with the current active window context
+        });
+        
+        // Dispatch the simulated hardware event directly onto the native anchor link
+        nativeAnchor.dispatchEvent(simulatedClick);
+    } else {
+        // Hard fallback if the element is absent from the DOM (e.g., due to virtual scrolling or lazy loading).
+        // Using .assign() forces a deterministic environment swap, bypassing Angular's location locks.
+        window.location.assign(`https://gemini.google.com/app/${chatId}`);
     }
 }
 
